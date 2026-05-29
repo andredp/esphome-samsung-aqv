@@ -55,54 +55,77 @@ void SamsungAqvClimate::transmit_state() {
 }
 
 bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
+  ESP_LOGD(TAG, "on_receive called, size=%d", data.size());
+
   // Look for Samsung AC header: mark > 2500µs, space > 8000µs
   if (!data.expect_item(2920, 8900))
-    if (!data.expect_item(4950, 8900))
+    if (!data.expect_item(4950, 8900)) {
+      ESP_LOGV(TAG, "Header not matched");
       return false;
+    }
+
+  ESP_LOGD(TAG, "Header matched, decoding burst 1");
 
   // Decode burst 1: 56 bits
   uint8_t b1[56] = {};
   for (int i = 0; i < 56; i++) {
-    if (!data.expect_mark(450))
+    if (!data.expect_mark(450)) {
+      ESP_LOGD(TAG, "Burst 1 mark failed at bit %d", i);
       return false;
+    }
     if (data.expect_space(1630)) {
       b1[i] = 1;
     } else if (data.expect_space(630)) {
       b1[i] = 0;
     } else {
+      ESP_LOGD(TAG, "Burst 1 space failed at bit %d", i);
       return false;
     }
   }
 
   // Verify burst 1 prefix: bit 1 and bit 9 must be 1
-  if (b1[1] != 1 || b1[9] != 1)
+  if (b1[1] != 1 || b1[9] != 1) {
+    ESP_LOGD(TAG, "Burst 1 prefix check failed: b1[1]=%d b1[9]=%d", b1[1], b1[9]);
     return false;
+  }
+
+  ESP_LOGD(TAG, "Burst 1 decoded, skipping inter-burst");
 
   // Skip inter-burst: mark + space + mark + space
-  if (!data.expect_mark(450))
+  if (!data.expect_mark(450)) {
+    ESP_LOGD(TAG, "Inter-burst mark failed");
     return false;
-  if (!data.expect_space(8900))
+  }
+  if (!data.expect_space(8900)) {
+    ESP_LOGD(TAG, "Inter-burst space failed");
     return false;
+  }
   if (!data.expect_item(2920, 8900))
-    if (!data.expect_item(4950, 8900))
+    if (!data.expect_item(4950, 8900)) {
+      ESP_LOGD(TAG, "Burst 2 header failed");
       return false;
+    }
+
+  ESP_LOGD(TAG, "Decoding burst 2");
 
   // Decode burst 2: 56 bits
   uint8_t b2[56] = {};
   for (int i = 0; i < 56; i++) {
-    if (!data.expect_mark(450))
+    if (!data.expect_mark(450)) {
+      ESP_LOGD(TAG, "Burst 2 mark failed at bit %d", i);
       return false;
+    }
     if (data.expect_space(1630)) {
       b2[i] = 1;
     } else if (data.expect_space(630)) {
       b2[i] = 0;
     } else {
+      ESP_LOGD(TAG, "Burst 2 space failed at bit %d", i);
       return false;
     }
   }
 
-  // Check if OFF command (burst 2 bit 0 = 1 means ON header, check burst count)
-  // OFF has 3 bursts; ON has 2. If we got here with a valid 2-burst, it's ON.
+  ESP_LOGD(TAG, "Burst 2 decoded, validating checksum");
 
   // Validate checksum on burst 2
   int ones = 0;
@@ -111,8 +134,10 @@ bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
   uint8_t expected_ck = reverse_bits(33 - (ones % 32), 5);
   uint8_t actual_ck = 0;
   for (int i = 0; i < 5; i++) actual_ck |= (b2[12 + i] << (4 - i));
-  if (actual_ck != expected_ck)
+  if (actual_ck != expected_ck) {
+    ESP_LOGD(TAG, "Checksum failed: expected=%d actual=%d", expected_ck, actual_ck);
     return false;
+  }
 
   // Decode temperature (bits 36-39, LSB-first)
   int temp_raw = b2[36] | (b2[37] << 1) | (b2[38] << 2) | (b2[39] << 3);
