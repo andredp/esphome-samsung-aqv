@@ -1,0 +1,7 @@
+!docs/
+tests/encode_cli
+tests/decode_cli
+tests/test_vectors.h
+tests/test_protocol
+__pycache__/
+*.pyc
