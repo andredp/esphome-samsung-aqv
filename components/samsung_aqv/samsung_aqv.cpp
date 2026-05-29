@@ -65,9 +65,9 @@ bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
   for (int i = 0; i < 56; i++) {
     if (!data.expect_mark(450))
       return false;
-    if (data.expect_space(1300)) {
+    if (data.expect_space(1630)) {
       b1[i] = 1;
-    } else if (data.expect_space(400)) {
+    } else if (data.expect_space(630)) {
       b1[i] = 0;
     } else {
       return false;
@@ -92,9 +92,9 @@ bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
   for (int i = 0; i < 56; i++) {
     if (!data.expect_mark(450))
       return false;
-    if (data.expect_space(1300)) {
+    if (data.expect_space(1630)) {
       b2[i] = 1;
-    } else if (data.expect_space(400)) {
+    } else if (data.expect_space(630)) {
       b2[i] = 0;
     } else {
       return false;
@@ -110,7 +110,7 @@ bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
   ones += 1;  // implicit trailing bit
   uint8_t expected_ck = reverse_bits(33 - (ones % 32), 5);
   uint8_t actual_ck = 0;
-  for (int i = 0; i < 5; i++) actual_ck |= (b2[12 + i] << i);
+  for (int i = 0; i < 5; i++) actual_ck |= (b2[12 + i] << (4 - i));
   if (actual_ck != expected_ck)
     return false;
 
