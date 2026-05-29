@@ -1,5 +1,6 @@
 #include "samsung_aqv.h"
 #include "protocol.h"
+#include "esphome/components/remote_base/pronto_protocol.h"
 #include "esphome/core/log.h"
 
 namespace esphome {
@@ -44,26 +45,11 @@ void SamsungAqvClimate::transmit_state() {
     pronto = encode_on(temp, mode, fan, swing);
   }
 
-  // Parse Pronto hex string to raw timing
-  std::vector<uint16_t> codes;
-  std::istringstream ss(pronto);
-  std::string token;
-  while (ss >> token)
-    codes.push_back((uint16_t) strtoul(token.c_str(), nullptr, 16));
+  remote_base::ProntoData data{};
+  data.data = pronto;
+  data.delta = 0;
+  this->transmit_<remote_base::ProntoProtocol>(data);
 
-  // Convert Pronto to raw µs timing
-  float pulse_time = 1000000.0f / (codes[1] * 0.241246f);
-  auto transmit = this->transmitter_->transmit();
-  auto *data = transmit.get_data();
-  data->set_carrier_frequency(38000);
-
-  for (size_t i = 4; i < codes.size(); i += 2) {
-    data->mark((uint32_t)(codes[i] * pulse_time));
-    if (i + 1 < codes.size())
-      data->space((uint32_t)(codes[i + 1] * pulse_time));
-  }
-
-  transmit.perform();
   ESP_LOGD(TAG, "Sent %s mode=%d temp=%d", this->mode == climate::CLIMATE_MODE_OFF ? "OFF" : "ON",
            (int) this->mode, (int) this->target_temperature);
 }
