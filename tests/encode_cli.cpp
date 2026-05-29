@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <cstring>
 #include "../components/samsung_aqv/protocol.h"
-using namespace samsung_aqv;
+using namespace esphome::samsung_aqv;
 
 int main(int argc, char *argv[]) {
   if (argc < 5) { fprintf(stderr, "Usage: encode_cli <mode> <fan> <swing> <temp>\n"); return 1; }

@@ -9,6 +9,7 @@
 // Models: AQV18NSCN, AQV09NSAX, Samsung AQV family (ARH-466 remote)
 // 56 data bits per burst, Pronto hex encoding at 38kHz.
 
+namespace esphome {
 namespace samsung_aqv {
 
 // Pronto timing constants (captured from ARH-466 remote)
@@ -273,3 +274,4 @@ inline DecodedState decode_pronto(const std::string &pronto) {
 }
 
 }  // namespace samsung_aqv
+}  // namespace esphome

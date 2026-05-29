@@ -7,43 +7,41 @@ namespace samsung_aqv {
 
 static const char *const TAG = "samsung_aqv";
 
-namespace p = ::samsung_aqv;
-
-static p::Mode to_proto_mode(climate::ClimateMode m) {
+static Mode to_proto_mode(climate::ClimateMode m) {
   switch (m) {
-    case climate::CLIMATE_MODE_COOL: return p::MODE_COOL;
-    case climate::CLIMATE_MODE_HEAT: return p::MODE_HEAT;
-    case climate::CLIMATE_MODE_DRY: return p::MODE_DRY;
-    case climate::CLIMATE_MODE_FAN_ONLY: return p::MODE_FAN_ONLY;
-    default: return p::MODE_HEAT_COOL;
+    case climate::CLIMATE_MODE_COOL: return MODE_COOL;
+    case climate::CLIMATE_MODE_HEAT: return MODE_HEAT;
+    case climate::CLIMATE_MODE_DRY: return MODE_DRY;
+    case climate::CLIMATE_MODE_FAN_ONLY: return MODE_FAN_ONLY;
+    default: return MODE_HEAT_COOL;
   }
 }
 
-static p::Fan to_proto_fan(climate::ClimateFanMode f) {
+static Fan to_proto_fan(climate::ClimateFanMode f) {
   switch (f) {
-    case climate::CLIMATE_FAN_QUIET: return p::FAN_QUIET;
-    case climate::CLIMATE_FAN_LOW: return p::FAN_LOW;
-    case climate::CLIMATE_FAN_MEDIUM: return p::FAN_MEDIUM;
-    case climate::CLIMATE_FAN_HIGH: return p::FAN_HIGH;
-    default: return p::FAN_AUTO;
+    case climate::CLIMATE_FAN_QUIET: return FAN_QUIET;
+    case climate::CLIMATE_FAN_LOW: return FAN_LOW;
+    case climate::CLIMATE_FAN_MEDIUM: return FAN_MEDIUM;
+    case climate::CLIMATE_FAN_HIGH: return FAN_HIGH;
+    default: return FAN_AUTO;
   }
 }
 
-static p::Swing to_proto_swing(climate::ClimateSwingMode s) {
-  return s == climate::CLIMATE_SWING_VERTICAL ? p::SWING_ON : p::SWING_OFF;
+static Swing to_proto_swing(climate::ClimateSwingMode s) {
+  return s == climate::CLIMATE_SWING_VERTICAL ? SWING_ON : SWING_OFF;
 }
 
 void SamsungAqvClimate::transmit_state() {
   std::string pronto;
   if (this->mode == climate::CLIMATE_MODE_OFF) {
-    pronto = p::encode_off();
+    pronto = encode_off();
   } else {
     auto mode = to_proto_mode(this->mode);
     auto fan = to_proto_fan(this->fan_mode.value_or(climate::CLIMATE_FAN_AUTO));
     auto swing = to_proto_swing(this->swing_mode);
-    fan = p::resolve_fan(mode, fan);
+    fan = resolve_fan(mode, fan);
     int temp = (int) this->target_temperature;
-    pronto = p::encode_on(temp, mode, fan, swing);
+    pronto = encode_on(temp, mode, fan, swing);
   }
 
   // Parse Pronto hex string to raw timing
@@ -124,7 +122,7 @@ bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
   int ones = 0;
   for (int i = 17; i < 56; i++) ones += b2[i];
   ones += 1;  // implicit trailing bit
-  uint8_t expected_ck = p::reverse_bits(33 - (ones % 32), 5);
+  uint8_t expected_ck = reverse_bits(33 - (ones % 32), 5);
   uint8_t actual_ck = 0;
   for (int i = 0; i < 5; i++) actual_ck |= (b2[12 + i] << i);
   if (actual_ck != expected_ck)
