@@ -57,12 +57,11 @@ void SamsungAqvClimate::transmit_state() {
 bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
   ESP_LOGD(TAG, "on_receive called, size=%d", data.size());
 
-  // Look for Samsung AC header: mark > 2500µs, space > 8000µs
-  if (!data.expect_item(2920, 8900))
-    if (!data.expect_item(4950, 8900)) {
-      ESP_LOGV(TAG, "Header not matched");
-      return false;
-    }
+  // Data starts with header space (~9000µs) - header mark triggered capture
+  if (!data.expect_space(8900)) {
+    ESP_LOGV(TAG, "Header space not matched");
+    return false;
+  }
 
   ESP_LOGD(TAG, "Header matched, decoding burst 1");
 
@@ -89,22 +88,15 @@ bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
     return false;
   }
 
-  ESP_LOGD(TAG, "Burst 1 decoded, skipping inter-burst");
+  ESP_LOGD(TAG, "Burst 1 decoded, looking for burst 2 header");
 
-  // Skip inter-burst: mark + space + mark + space
-  if (!data.expect_mark(450)) {
-    ESP_LOGD(TAG, "Inter-burst mark failed");
-    return false;
-  }
-  if (!data.expect_space(8900)) {
-    ESP_LOGD(TAG, "Inter-burst space failed");
-    return false;
-  }
-  if (!data.expect_item(2920, 8900))
+  // After 56 bits decoded, next is inter-burst mark (~2940) + burst 2 header space (~9089)
+  if (!data.expect_item(2920, 8900)) {
     if (!data.expect_item(4950, 8900)) {
       ESP_LOGD(TAG, "Burst 2 header failed");
       return false;
     }
+  }
 
   ESP_LOGD(TAG, "Decoding burst 2");
 
