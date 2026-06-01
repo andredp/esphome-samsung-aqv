@@ -3,7 +3,6 @@
 ## Backlog
 
 - [ ] Test more modes with real remote — Heat, Dry, Heat_cool (Cool and Fan_only verified)
-- [ ] Add OFF command detection (3-burst signal)
 - [ ] Handle receiver self-echo (ignore signals from own transmitter)
 - [ ] Add CI (GitHub Actions) — compile against ESPHome framework + run test suite
 - [ ] Consider removing `<sstream>` from protocol.h (only used by `decode_pronto`, adds ~4KB flash)
@@ -24,3 +23,4 @@
 - [x] Athom ESP8266 blaster — deployed and working (Tasmota→ESPHome migration)
 - [x] Remove debug logging from `on_receive` (replaced with optional text_sensor)
 - [x] Fan_only header confirmed short (~2940µs) via real remote capture
+- [x] OFF command detection (3-burst signal, size threshold)
