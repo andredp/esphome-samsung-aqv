@@ -147,9 +147,7 @@ Total generated codes: 489 (5 modes × 5 fans × 15 temps × 2 swing + fan_only 
 ## SmartIR Deployment
 
 - **JSON file:** `9999.json` at `/config/custom_components/smartir/codes/climate/`
-- **Generator:** `generate_samsung_ir.py` in home-network workspace
-- **ESPHome config:** `ir-blaster.yaml` in home-network workspace
-- **HA config:** `climate.yaml` with `!include` from `configuration.yaml`
+- **Generator:** `generate_samsung_ir.py` (deprecated, now using protocol.h)
 - **Controller data:** `ir_blaster_send_raw_command` (ESPHome user-defined service)
 - **Entity:** `climate.living_room_ac`
 - **Fan modes:** auto, low, medium, medium_high, high (medium_high has no HA icon)

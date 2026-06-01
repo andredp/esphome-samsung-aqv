@@ -115,8 +115,8 @@ components/samsung_aqv/
 └── __init__.py      — Empty (ESPHome package requirement)
 
 tests/
-├── test_protocol.cpp      — Native C++ tests (doctest, 6400+ assertions)
-├── test_vectors.h         — 457 Pronto test vectors (compile-time)
+├── test_protocol.cpp      — Native C++ tests (doctest, 10000+ assertions)
+├── test_vectors.h         — 540 Pronto test vectors (compile-time)
 ├── doctest.h              — Single-header test framework
 ├── encode_cli.cpp         — CLI encoder (for manual debugging)
 ├── decode_cli.cpp         — CLI decoder

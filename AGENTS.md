@@ -21,8 +21,8 @@ components/samsung_aqv/
 └── __init__.py      — Empty (ESPHome requirement)
 
 tests/
-├── test_protocol.cpp — Native C++ tests (doctest, 6400+ assertions)
-├── test_vectors.h    — 457 Pronto test vectors (compile-time)
+├── test_protocol.cpp — Native C++ tests (doctest, 10000+ assertions)
+├── test_vectors.h    — 540 Pronto test vectors (compile-time)
 ├── doctest.h         — Single-header test framework
 ├── encode_cli.cpp    — CLI wrapper for encode (compiles against protocol.h)
 ├── decode_cli.cpp    — CLI wrapper for decode
@@ -48,7 +48,7 @@ docs/
 ## Build and test
 
 ```bash
-# Compile and run native C++ tests (6400+ assertions)
+# Compile and run native C++ tests (10000+ assertions)
 g++ -std=c++17 -O2 -o tests/test_protocol tests/test_protocol.cpp
 tests/test_protocol
 
@@ -57,7 +57,7 @@ g++ -std=c++17 -O2 -o tests/encode_cli tests/encode_cli.cpp
 g++ -std=c++17 -O2 -o tests/decode_cli tests/decode_cli.cpp
 ```
 
-Tests validate encode/decode roundtrip against 457 Pronto vectors, timing-based decode, fan fallback logic, and edge cases.
+Tests validate encode/decode roundtrip against 540 Pronto vectors, timing-based decode, fan fallback logic, and edge cases.
 
 ## ESPHome compilation
 
@@ -79,7 +79,7 @@ Target ESPHome version: 2026.5+. Uses `climate_ir_with_receiver_schema()` and `n
 - Mode: bits 44-46 MSB-first (cool=100, heat=001, dry=010, fan_only=110, heat_cool=011).
 - Fan: bits 41-43 MSB-first (auto=000, low=010, medium=001, high=101). Quiet = burst1 bit 45.
 - Swing: burst2 bits 20,22 (0=moving, 1=stopped), bit 21 always 1.
-- Fan_only and OFF use long header mark (0x00BC vs 0x006F).
+- All commands use short header mark (0x006F). Long header (0x00BC) not used by ARH-466.
 
 ## Fan mode constraints (from manual)
 
@@ -101,7 +101,7 @@ Target ESPHome version: 2026.5+. Uses `climate_ir_with_receiver_schema()` and `n
 ## Receiver notes
 
 - ESPHome's `remote_receiver` buffer starts with the header mark (positive value), followed by header space (negative).
-- `on_receive()` first matches the header mark (~2920 for ON, ~4950 for OFF) to determine long/short header.
+- `on_receive()` matches the header mark (~2920) then header space (~9000).
 - Inter-burst in buffer: trailing_mark(~450) + short_space(~1900) + burst2_hdr_mark(~2920) + burst2_hdr_space(~9000).
 - Bit spaces: ~1630 µs = logic 1, ~630 µs = logic 0. Mark: ~450 µs.
 - `receiver_id` must be specified in device YAML for `on_receive()` to be called.
@@ -109,4 +109,4 @@ Target ESPHome version: 2026.5+. Uses `climate_ir_with_receiver_schema()` and `n
 
 ## Deployment
 
-Device YAMLs live in a separate repo (home-network). The component is imported via `external_components` from GitHub. OTA flash via ESPHome dashboard.
+Device YAMLs are separate from this repo. The component is imported via `external_components` from GitHub. OTA flash via ESPHome dashboard.

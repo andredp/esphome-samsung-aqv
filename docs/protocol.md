@@ -15,11 +15,10 @@
 | Bit mark | 0x0011 | 447 | All data bits |
 | Space 0 | 0x0018 | 631 | Short space = logic 0 |
 | Space 1 | 0x003E | 1630 | Long space = logic 1 |
-| Header mark (ON) | 0x006F | 2920 | First burst of ON commands |
-| Header mark (OFF/fan_only) | 0x00BC | 4944 | First burst of OFF and fan_only commands |
+| Header mark | 0x006F | 2920 | All commands (ON and OFF) |
 | Header space | 0x015F | 9230 | After header mark |
 | Inter-burst mark | 0x0071 | 2970 | Between bursts (2nd, 3rd) |
-| Inter-burst space | 0x015E | 9204 | Between bursts |
+| Inter-burst space | 0x0048 | 1900 | Between bursts |
 | Tail space | 0x0181 | 10124 | Final space after last burst |
 
 **IMPORTANT:** This AC is very timing-sensitive. Idealized/rounded raw values (e.g., 490/590/1550/3000) do NOT work. Codes must be sent via ESPHome's `transmit_pronto` using Pronto hex format, which preserves correct timing through the Pronto timebase conversion.
@@ -27,7 +26,7 @@
 ## Message Structure
 
 ### OFF command: 3 bursts (21 bytes / 174 Pronto pairs)
-- Burst 1: 7 bytes (header/device ID) — uses long header mark (0x00BC)
+- Burst 1: 7 bytes (header/device ID) — uses short header mark (0x006F)
 - Burst 2: 7 bytes (power off state)
 - Burst 3: 7 bytes (checksum/confirmation)
 - Each burst ends with a trailing mark + inter-burst space (or tail space for last burst)
@@ -35,7 +34,6 @@
 ### ON commands: 2 bursts (14 bytes / 118 Pronto pairs)
 - Burst 1: 7 bytes (header + fan speed) — uses short header mark (0x006F)
 - Burst 2: 7 bytes (mode, temperature, swing, checksum)
-- Exception: fan_only mode uses long header mark (0x00BC)
 
 ## Burst 1 (Header) - 56 bits
 
@@ -184,21 +182,17 @@ Burst 2: 80 40 F5 80 01 DC 0F
 
 ## IR Blaster Hardware
 
-- **Device:** Tuya S11 Universal IR+RF WiFi Remote Control
-- **Module:** CBU (BK7231N) — soldered onto main PCB
-- **Firmware:** ESPHome via LibreTiny (flashed with tuya-cloudcutter)
+### Tuya S11 (Living Room)
+- **Module:** CBU (BK7231N)
+- **Firmware:** ESPHome via LibreTiny
 - **ESPHome board:** `cbu`
+- **Pins:** P7=IR TX, P8=IR RX, P9=LED, P23=Button
 
-### GPIO Pinout (confirmed via testing)
-
-| Pin | Function |
-|-----|----------|
-| P7 | IR Transmitter (confirmed working via webcam) |
-| P8 | IR Receiver (confirmed working — captures remote codes) |
-| P9 | Status LED |
-| P23 | Button |
-
-**Note:** The S11 ESPHome device page documents the same pinout. The IRC03 page has different pins (P9=Button, P24=LED) — this device is NOT an IRC03 despite similar appearance. Confirmed by CBU module label on PCB.
+### Athom AR01 (Bedroom)
+- **Module:** ESP8285 (2MB flash)
+- **Firmware:** ESPHome
+- **ESPHome board:** `esp8285`
+- **Pins:** GPIO4=IR TX, GPIO5=IR RX, GPIO13=LED(inv), GPIO0=Button
 
 ### ESPHome Services
 
