@@ -17,7 +17,7 @@ ESPHome includes a [`heatpumpir`](https://esphome.io/components/climate/climate_
 | IR receiver | ❌ Transmit only | ✅ Decodes remote, syncs HA state |
 | Platform support | Arduino only (ESP8266/ESP32) | Arduino + LibreTiny (BK7231N, etc.) |
 | Protocol source | Arduino-HeatpumpIR C++ library | Self-contained header (protocol.h) |
-| Checksum | Simplified formula | Full reverse-engineered, validated against 457 codes |
+| Checksum | Simplified formula | Full reverse-engineered, validated against 540 test vectors |
 | Tested against real remote | ❌ | ✅ 17 captured signals verified bit-for-bit |
 
 If you're on ESP8266/ESP32 and don't need quiet mode, accurate temp range, or IR receiver, `heatpumpir` works fine. This component exists because we needed all of the above on a BK7231N (Tuya CBU) blaster.

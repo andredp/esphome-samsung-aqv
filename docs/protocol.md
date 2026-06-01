@@ -121,7 +121,6 @@ Notes:
 - Fan-only mode supports 3 speeds only: low, medium, high (no auto, no quiet)
 - Auto (heat_cool) mode supports 4 speeds: auto, low, medium, high (no quiet)
 - Dry mode forces auto fan (no manual fan selection)
-- SmartIR fan mode names: `auto`, `quiet`, `low`, `medium`, `high`
 
 ### Swing/Flap (bits 20, 22 in Burst 2)
 
@@ -194,33 +193,6 @@ Burst 2: 80 40 F5 80 01 DC 0F
 - **ESPHome board:** `esp8285`
 - **Pins:** GPIO4=IR TX, GPIO5=IR RX, GPIO13=LED(inv), GPIO0=Button
 
-### ESPHome Services
-
-| Service | Variable | Type | Purpose |
-|---------|----------|------|---------|
-| `send_raw_command` | `command` | `int[]` | Send raw IR timing array |
-| `send_ir_command` | `command` | `string` | Send Pronto hex string via `transmit_pronto` |
-
-## SmartIR Integration Status
-
-### Working (2026-04-13)
-- **Device code:** 9999
-- **Controller:** ESPHome
-- **Encoding label:** `Raw` (required — ESPHome controller rejects `Pronto`)
-- **Actual format:** Pronto hex strings stored as JSON-escaped strings
-- **controller_data:** `ir_blaster_send_ir_command`
-- **ESPHome service:** `send_ir_command` accepts `command: string` → `transmit_pronto`
-
-### Key Implementation Details
-- SmartIR's ESPHome controller does `json.loads(command)` on the stored value
-- Codes stored as `json.dumps(pronto_string)` → double-quoted in JSON
-- `json.loads` returns a plain string → passed as `{'command': "0000 006D..."}` to ESPHome
-- JSON nesting order: `commands[mode][fan][swing][temp]` (SmartIR's expected lookup path)
-- `commandsEncoding` must be `"Raw"` even though actual data is Pronto (ESPHome controller validation)
-
-### Files
-- **SmartIR JSON:** Deprecated — replaced by native ESPHome component
-
 ## Operating Reference (from manual DB98-28490A)
 
 ### Mode / Fan / Temperature Matrix
@@ -233,7 +205,7 @@ Burst 2: 80 40 F5 80 01 DC 0F
 | Dry | Auto only | 16–30°C | Fan speed adjusts automatically |
 | Fan only | Low, Medium, High | N/A (auto) | Temperature set automatically by AC |
 
-### Special Functions (not in SmartIR — require separate IR commands)
+### Special Functions (require separate IR commands, not implemented)
 
 | Function | Available Modes | Duration | Notes |
 |----------|----------------|----------|-------|
