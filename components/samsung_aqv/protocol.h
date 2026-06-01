@@ -18,7 +18,7 @@ constexpr uint16_t P_HDR_SHORT = 0x006F;  // ON commands
 constexpr uint16_t P_HDR_LONG = 0x00BC;   // fan_only
 constexpr uint16_t P_HDR_SPACE = 0x015F;
 constexpr uint16_t P_INTER_MARK = 0x0071;
-constexpr uint16_t P_INTER_SPACE = 0x015E;
+constexpr uint16_t P_INTER_GAP = 0x0048;  // ~1900µs gap between bursts (real remote)
 constexpr uint16_t P_MARK = 0x0011;
 constexpr uint16_t P_SPACE_0 = 0x0018;
 constexpr uint16_t P_SPACE_1 = 0x003E;
@@ -194,14 +194,14 @@ inline std::string encode_off() {
   pairs.push_back(P_HDR_SPACE);
   append_bits_pronto(pairs, b1, 56);
   pairs.push_back(P_MARK);
-  pairs.push_back(P_INTER_SPACE);
+  pairs.push_back(P_INTER_GAP);
   pairs.push_back(P_INTER_MARK);
-  pairs.push_back(P_INTER_SPACE);
+  pairs.push_back(P_HDR_SPACE);
   append_bits_pronto(pairs, b2, 56);
   pairs.push_back(P_MARK);
-  pairs.push_back(P_INTER_SPACE);
+  pairs.push_back(P_INTER_GAP);
   pairs.push_back(P_INTER_MARK);
-  pairs.push_back(P_INTER_SPACE);
+  pairs.push_back(P_HDR_SPACE);
   append_bits_pronto(pairs, b3, 56);
   pairs.push_back(P_MARK);
   pairs.push_back(P_TAIL);
@@ -220,9 +220,9 @@ inline std::string encode_on(int temp, Mode mode, Fan fan, Swing swing) {
   pairs.push_back(P_HDR_SPACE);
   append_bits_pronto(pairs, b1, 56);
   pairs.push_back(P_MARK);
-  pairs.push_back(P_INTER_SPACE);
+  pairs.push_back(P_INTER_GAP);
   pairs.push_back(P_INTER_MARK);
-  pairs.push_back(P_INTER_SPACE);
+  pairs.push_back(P_HDR_SPACE);
   append_bits_pronto(pairs, b2, 56);
   pairs.push_back(P_MARK);
   pairs.push_back(P_TAIL);

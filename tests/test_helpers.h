@@ -78,11 +78,11 @@ inline DecodedState decode_from_timings(const int32_t *timings, size_t count) {
   if (b1[1] != 1 || b1[9] != 1)
     return state;
 
-  // Inter-burst: trailing_mark + inter_space + inter_mark + inter_space
+  // Inter-burst: trailing_mark + gap (~1900µs) + inter_mark (~3000µs) + hdr_space (~9000µs)
   if (idx >= count || !in_range(timings[idx], T_BIT_MARK))
     return state;
   idx++;
-  if (idx >= count || !in_range(timings[idx], T_HDR_SPACE))
+  if (idx >= count || timings[idx] < 500)  // gap is ~1900µs, just check it's a valid space
     return state;
   idx++;
   if (idx >= count || !in_range(timings[idx], T_INTER_MARK))

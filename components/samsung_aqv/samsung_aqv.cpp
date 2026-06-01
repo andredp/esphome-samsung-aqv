@@ -79,6 +79,7 @@ bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
 
   // OFF = 3 bursts (~347-348 items), ON = 2 bursts (~231-232 items)
   if (data.size() > RX_OFF_SIZE_THRESHOLD) {
+    ESP_LOGD(TAG, "Received OFF (3 bursts, size=%d)", data.size());
     this->mode = climate::CLIMATE_MODE_OFF;
     this->publish_state();
     return true;
