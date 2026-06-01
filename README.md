@@ -119,11 +119,13 @@ tests/
 ├── test_vectors.h         — 540 Pronto test vectors (compile-time)
 ├── test_helpers.h         — Timing-based decode helpers for tests
 ├── doctest.h              — Single-header test framework
-├── encode_cli.cpp         — CLI encoder (for manual debugging)
-├── decode_cli.cpp         — CLI decoder
 ├── test_esphome.yaml      — ESPHome compile test (ESP8266)
 ├── test_esphome_esp32.yaml    — ESPHome compile test (ESP32)
 └── test_esphome_bk7231n.yaml  — ESPHome compile test (BK7231N)
+
+tools/
+├── encode_cli.cpp  — CLI encoder (for manual debugging)
+└── decode_cli.cpp  — CLI decoder
 
 docs/
 ├── protocol.md         — Full protocol reverse-engineering notes

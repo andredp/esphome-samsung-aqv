@@ -1,7 +1,7 @@
 !docs/
 !AGENTS.md
-tests/encode_cli
-tests/decode_cli
 tests/test_protocol
+tools/encode_cli
+tools/decode_cli
 __pycache__/
 *.pyc

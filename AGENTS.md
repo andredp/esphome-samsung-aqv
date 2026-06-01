@@ -25,11 +25,13 @@ tests/
 ├── test_vectors.h    — 540 Pronto test vectors (compile-time)
 ├── test_helpers.h    — Timing-based decode helpers for tests
 ├── doctest.h         — Single-header test framework
-├── encode_cli.cpp    — CLI wrapper for encode (compiles against protocol.h)
-├── decode_cli.cpp    — CLI wrapper for decode
 ├── test_esphome.yaml      — ESPHome compile test (ESP8266)
 ├── test_esphome_esp32.yaml — ESPHome compile test (ESP32)
 └── test_esphome_bk7231n.yaml — ESPHome compile test (BK7231N)
+
+tools/
+├── encode_cli.cpp — CLI wrapper for encode (compiles against protocol.h)
+└── decode_cli.cpp — CLI wrapper for decode
 
 docs/
 ├── protocol.md      — Protocol reverse-engineering notes
@@ -52,8 +54,8 @@ g++ -std=c++17 -O2 -o tests/test_protocol tests/test_protocol.cpp
 tests/test_protocol
 
 # Compile test CLIs (for manual debugging)
-g++ -std=c++17 -O2 -o tests/encode_cli tests/encode_cli.cpp
-g++ -std=c++17 -O2 -o tests/decode_cli tests/decode_cli.cpp
+g++ -std=c++17 -O2 -o tools/encode_cli tools/encode_cli.cpp
+g++ -std=c++17 -O2 -o tools/decode_cli tools/decode_cli.cpp
 ```
 
 Tests validate encode/decode roundtrip against 540 Pronto vectors, timing-based decode, fan fallback logic, and edge cases.
