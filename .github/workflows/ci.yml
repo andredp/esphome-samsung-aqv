@@ -25,7 +25,7 @@ jobs:
       - name: Install cppcheck
         run: sudo apt-get install -y cppcheck
       - name: Run cppcheck
-        run: cppcheck --language=c++ --enable=warning,performance,portability --error-exitcode=1 --std=c++17 --suppress=missingIncludeSystem components/samsung_aqv/protocol.h
+        run: cppcheck --language=c++ --enable=warning,performance,portability --error-exitcode=1 --std=c++17 --suppress=missingIncludeSystem --suppress=missingInclude components/samsung_aqv/
 
   clang-format:
     name: clang-format
