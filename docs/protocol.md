@@ -219,9 +219,7 @@ Burst 2: 80 40 F5 80 01 DC 0F
 - `commandsEncoding` must be `"Raw"` even though actual data is Pronto (ESPHome controller validation)
 
 ### Files
-- `generate_samsung_ir.py` — Code generator (Pronto hex output with correct timing constants)
-- `samsung_aqv18nscn.json` — Generated SmartIR JSON (deploy as 9999.json)
-- `ir-blaster.yaml` — ESPHome config with `send_raw_command` and `send_ir_command` services
+- **SmartIR JSON:** Deprecated — replaced by native ESPHome component
 
 ## Operating Reference (from manual DB98-28490A)
 

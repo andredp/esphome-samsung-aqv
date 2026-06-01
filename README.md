@@ -117,18 +117,17 @@ components/samsung_aqv/
 tests/
 ├── test_protocol.cpp      — Native C++ tests (doctest, 10000+ assertions)
 ├── test_vectors.h         — 540 Pronto test vectors (compile-time)
+├── test_helpers.h         — Timing-based decode helpers for tests
 ├── doctest.h              — Single-header test framework
 ├── encode_cli.cpp         — CLI encoder (for manual debugging)
 ├── decode_cli.cpp         — CLI decoder
-├── samsung_aqv18nscn.json — Ground truth: 457 Pronto codes
 ├── test_esphome.yaml      — ESPHome compile test (ESP8266)
 ├── test_esphome_esp32.yaml    — ESPHome compile test (ESP32)
 └── test_esphome_bk7231n.yaml  — ESPHome compile test (BK7231N)
 
 docs/
 ├── protocol.md         — Full protocol reverse-engineering notes
-├── captured_signals.md — 17 captured codes from ARH-466 remote
-└── generate_samsung_ir.py — Deprecated Python generator (reference only)
+└── captured_signals.md — 17 captured codes from ARH-466 remote
 ```
 
 ## Running tests
