@@ -2,6 +2,7 @@
 #include "protocol.h"
 #include "esphome/components/remote_base/pronto_protocol.h"
 #include "esphome/core/log.h"
+#include <string>
 
 namespace esphome {
 namespace samsung_aqv {
@@ -75,6 +76,26 @@ void SamsungAqvClimate::transmit_state() {
 }
 
 bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
+  if (this->decode_(data))
+    return true;
+#ifdef USE_TEXT_SENSOR
+  if (this->debug_sensor_ != nullptr) {
+    auto raw = data.get_raw_data();
+    std::string buf;
+    int n = std::min((int) raw.size(), 20);
+    for (int i = 0; i < n; i++) {
+      if (i > 0)
+        buf += ' ';
+      buf += std::to_string(raw[i]);
+    }
+    buf += " (size=" + std::to_string(raw.size()) + ")";
+    this->debug_sensor_->publish_state(buf);
+  }
+#endif
+  return false;
+}
+
+bool SamsungAqvClimate::decode_(remote_base::RemoteReceiveData &data) {
   ESP_LOGD(TAG, "on_receive called, size=%d", data.size());
 
   // OFF = 3 bursts (~347-348 items), ON = 2 bursts (~231-232 items)
