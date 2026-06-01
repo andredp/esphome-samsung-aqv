@@ -51,7 +51,6 @@ inline DecodedState decode_from_timings(const int32_t *timings, size_t count) {
     return state;
   if (!in_range(timings[idx], T_HDR_SHORT) && !in_range(timings[idx], T_HDR_LONG))
     return state;
-  bool long_header = (timings[idx] > 4000);
   idx++;
 
   if (idx >= count || !in_range(timings[idx], T_HDR_SPACE))
@@ -112,7 +111,7 @@ inline DecodedState decode_from_timings(const int32_t *timings, size_t count) {
   }
 
   // OFF has 3 bursts; only first 2 needed for identification.
-  return decode_from_bits(b1, b2, long_header);
+  return decode_from_bits(b1, b2);
 }
 
 }  // namespace samsung_aqv

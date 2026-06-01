@@ -67,6 +67,13 @@ void SamsungAqvClimate::transmit_state() {
 bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
   ESP_LOGD(TAG, "on_receive called, size=%d", data.size());
 
+  // OFF = 3 bursts (~348 items), ON = 2 bursts (~232 items)
+  if (data.size() > 300) {
+    this->mode = climate::CLIMATE_MODE_OFF;
+    this->publish_state();
+    return true;
+  }
+
   // Header mark (~2920 for ON, ~4950 for OFF/fan_only)
   bool long_header;
   if (data.expect_mark(2920)) {
@@ -125,7 +132,7 @@ bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
   }
 
   // Use shared protocol decode
-  auto decoded = decode_from_bits(b1, b2, long_header);
+  auto decoded = decode_from_bits(b1, b2);
   if (!decoded.valid)
     return false;
   if (decoded.is_off) {

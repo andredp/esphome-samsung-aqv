@@ -15,7 +15,7 @@ namespace samsung_aqv {
 // Pronto timing constants (captured from ARH-466 remote)
 constexpr uint16_t P_FREQ = 0x006D;
 constexpr uint16_t P_HDR_SHORT = 0x006F;  // ON commands
-constexpr uint16_t P_HDR_LONG = 0x00BC;   // OFF, fan_only
+constexpr uint16_t P_HDR_LONG = 0x00BC;   // fan_only
 constexpr uint16_t P_HDR_SPACE = 0x015F;
 constexpr uint16_t P_INTER_MARK = 0x0071;
 constexpr uint16_t P_INTER_SPACE = 0x015E;
@@ -190,7 +190,7 @@ inline std::string encode_off() {
                           0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1};
 
   std::vector<uint16_t> pairs;
-  pairs.push_back(P_HDR_LONG);
+  pairs.push_back(P_HDR_SHORT);
   pairs.push_back(P_HDR_SPACE);
   append_bits_pronto(pairs, b1, 56);
   pairs.push_back(P_MARK);
@@ -242,7 +242,7 @@ struct DecodedState {
 
 // Core decode: given burst1 and burst2 bit arrays + header type, extract state.
 // Used by both decode_pronto() and on_receive() — single source of truth.
-inline DecodedState decode_from_bits(const uint8_t b1[56], const uint8_t b2[56], bool long_header) {
+inline DecodedState decode_from_bits(const uint8_t b1[56], const uint8_t b2[56]) {
   DecodedState state{};
 
   // Validate checksum on burst 1 (same algorithm as burst 2)
@@ -275,11 +275,6 @@ inline DecodedState decode_from_bits(const uint8_t b1[56], const uint8_t b2[56],
 
   // Mode: bits 44-46 MSB-first
   int mode_raw = (b2[44] << 2) | (b2[45] << 1) | b2[46];
-
-  if (long_header && mode_raw != 0b110) {
-    state.is_off = true;
-    return state;
-  }
 
   state.is_off = false;
   switch (mode_raw) {
@@ -352,17 +347,22 @@ inline DecodedState decode_pronto(const std::string &pronto) {
   if (idx + 1 >= codes.size())
     return state;
 
-  uint16_t hdr_mark = codes[idx];
-  bool long_header = (hdr_mark == P_HDR_LONG);
+  // OFF = 3 bursts (pair count > 150), ON = 2 bursts (~116 pairs)
+  if (codes[2] > 0x0090) {
+    state.valid = true;
+    state.is_off = true;
+    return state;
+  }
+
   idx += 2;  // skip header mark+space
 
-  // Decode burst 1 (56 bit pairs)
+  // Decode burst 1 (56 bit pairs) — threshold at midpoint between P_SPACE_0(0x18) and P_SPACE_1(0x3E)
   uint8_t b1[56];
   for (int i = 0; i < 56; i++) {
     if (idx + 1 >= codes.size())
       return state;
     idx++;  // skip mark
-    b1[i] = (codes[idx] == P_SPACE_1) ? 1 : 0;
+    b1[i] = (codes[idx] > 0x002B) ? 1 : 0;
     idx++;
   }
   // Skip trailing mark + inter-burst space + inter-burst mark + inter-burst space
@@ -374,11 +374,11 @@ inline DecodedState decode_pronto(const std::string &pronto) {
     if (idx + 1 >= codes.size())
       return state;
     idx++;
-    b2[i] = (codes[idx] == P_SPACE_1) ? 1 : 0;
+    b2[i] = (codes[idx] > 0x002B) ? 1 : 0;
     idx++;
   }
 
-  return decode_from_bits(b1, b2, long_header);
+  return decode_from_bits(b1, b2);
 }
 
 }  // namespace samsung_aqv

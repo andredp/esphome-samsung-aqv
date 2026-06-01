@@ -59,10 +59,8 @@ TEST_CASE("decode_from_timings roundtrip all 456 vectors") {
   }
 }
 
-TEST_CASE("decode_from_timings OFF") {
-  auto timings = pronto_to_timings(EXPECTED_OFF);
-  REQUIRE(!timings.empty());
-  auto d = decode_from_timings(timings.data(), timings.size());
+TEST_CASE("decode OFF") {
+  auto d = decode_pronto(EXPECTED_OFF);
   CHECK(d.valid);
   CHECK(d.is_off);
 }
