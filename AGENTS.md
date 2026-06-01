@@ -100,9 +100,10 @@ Target ESPHome version: 2026.5+. Uses `climate_ir_with_receiver_schema()` and `n
 
 ## Receiver notes
 
-- ESPHome's `remote_receiver` captures start with the header space (mark triggers capture but isn't in buffer).
-- `on_receive()` must handle this: first call is `expect_space(8900)`, not `expect_item(mark, space)`.
-- Bit spaces: 1630 µs = logic 1, 630 µs = logic 0. Mark: ~450 µs.
+- ESPHome's `remote_receiver` buffer starts with the header mark (positive value), followed by header space (negative).
+- `on_receive()` first matches the header mark (~2920 for ON, ~4950 for OFF) to determine long/short header.
+- Inter-burst in buffer: trailing_mark(~450) + short_space(~1900) + burst2_hdr_mark(~2920) + burst2_hdr_space(~9000).
+- Bit spaces: ~1630 µs = logic 1, ~630 µs = logic 0. Mark: ~450 µs.
 - `receiver_id` must be specified in device YAML for `on_receive()` to be called.
 - `dump: raw` in YAML enables raw signal logging for debugging.
 

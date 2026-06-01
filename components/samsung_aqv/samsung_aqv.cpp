@@ -67,11 +67,19 @@ void SamsungAqvClimate::transmit_state() {
 bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
   ESP_LOGD(TAG, "on_receive called, size=%d", data.size());
 
-  // Data starts with header space (~9000µs) - header mark triggered capture
-  if (!data.expect_space(8900)) {
-    ESP_LOGV(TAG, "Header space not matched");
+  // Header mark (~2920 for ON, ~4950 for OFF/fan_only)
+  bool long_header;
+  if (data.expect_mark(2920)) {
+    long_header = false;
+  } else if (data.expect_mark(4950)) {
+    long_header = true;
+  } else {
     return false;
   }
+
+  // Header space (~9000µs)
+  if (!data.expect_space(8900))
+    return false;
 
   // Decode burst 1: 56 bits
   uint8_t b1[56] = {};
@@ -90,18 +98,18 @@ bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
   if (b1[1] != 1 || b1[9] != 1)
     return false;
 
-  // Inter-burst gap: the transmitter sends trailing_mark(~450) + msg_space + hdr_mark + hdr_space.
-  // The receiver's last bit space absorbs the trailing mark + msg_space (below tolerance threshold),
-  // so the next items in the buffer are the burst 2 header: mark (~2920 for ON, ~4950 for OFF) + space (~8900).
-  // See heatpumpir SamsungHeatpumpIR.cpp sendSamsung() for the transmit-side sequence.
-  bool long_header;
-  if (data.expect_item(2920, 8900)) {
-    long_header = false;
-  } else if (data.expect_item(4950, 8900)) {
-    long_header = true;
-  } else {
+  // Inter-burst: trailing mark + gap before burst 2 header.
+  // Real receiver shows: ~450 mark, ~1900 space, then burst 2 header mark (~2920) + space (~9000).
+  // The gap timing varies by hardware; just consume the trailing mark and skip to the next header.
+  if (!data.expect_mark(450))
+    return false;
+  // Try direct burst 2 header (some receivers merge the gap differently)
+  if (!data.expect_space(1900)) {
+    // If no short space, the trailing mark might have been the last thing before header
     return false;
   }
+  if (!data.expect_item(long_header ? 4950 : 2920, 8900))
+    return false;
 
   // Decode burst 2: 56 bits
   uint8_t b2[56] = {};
