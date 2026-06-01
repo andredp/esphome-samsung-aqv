@@ -10,8 +10,7 @@ namespace samsung_aqv {
 static const char *const TAG = "samsung_aqv";
 
 // Receiver timing constants (µs) — nominal values, ESPHome applies ±25% tolerance
-static constexpr int RX_HDR_MARK_SHORT = 2920;     // ON header mark
-static constexpr int RX_HDR_MARK_LONG = 4950;      // fan_only header mark
+static constexpr int RX_HDR_MARK = 2920;           // Header mark
 static constexpr int RX_HDR_SPACE = 8900;          // Header/inter-burst space
 static constexpr int RX_BIT_MARK = 450;            // Data bit mark
 static constexpr int RX_SPACE_ONE = 1630;          // Logic 1 space
@@ -106,7 +105,7 @@ bool SamsungAqvClimate::decode_(remote_base::RemoteReceiveData &data) {
 
   // Header mark may or may not be in buffer (receiver timing dependent).
   // Try to consume it; if buffer starts with space, skip to header space.
-  data.expect_mark(RX_HDR_MARK_SHORT) || data.expect_mark(RX_HDR_MARK_LONG);
+  data.expect_mark(RX_HDR_MARK);
 
   // Header space
   if (!data.expect_space(RX_HDR_SPACE))
@@ -134,7 +133,7 @@ bool SamsungAqvClimate::decode_(remote_base::RemoteReceiveData &data) {
     return false;
   if (!data.expect_space(RX_INTER_SPACE))
     return false;
-  if (!(data.expect_item(RX_HDR_MARK_SHORT, RX_HDR_SPACE) || data.expect_item(RX_HDR_MARK_LONG, RX_HDR_SPACE)))
+  if (!(data.expect_item(RX_HDR_MARK, RX_HDR_SPACE)))
     return false;
 
   // Decode burst 2: 56 bits

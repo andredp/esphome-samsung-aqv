@@ -14,8 +14,7 @@ namespace samsung_aqv {
 
 // Pronto timing constants (captured from ARH-466 remote)
 constexpr uint16_t P_FREQ = 0x006D;
-constexpr uint16_t P_HDR_SHORT = 0x006F;  // ON commands
-constexpr uint16_t P_HDR_LONG = 0x00BC;   // fan_only
+constexpr uint16_t P_HDR_SHORT = 0x006F;
 constexpr uint16_t P_HDR_SPACE = 0x015F;
 constexpr uint16_t P_INTER_MARK = 0x0071;
 constexpr uint16_t P_INTER_GAP = 0x0048;  // ~1900µs gap between bursts (real remote)
@@ -214,7 +213,7 @@ inline std::string encode_on(int temp, Mode mode, Fan fan, Swing swing) {
   build_burst1(b1, actual_fan);
   build_burst2(b2, temp, mode, actual_fan, swing);
 
-  uint16_t hdr = (mode == MODE_FAN_ONLY) ? P_HDR_LONG : P_HDR_SHORT;
+  uint16_t hdr = P_HDR_SHORT;
   std::vector<uint16_t> pairs;
   pairs.push_back(hdr);
   pairs.push_back(P_HDR_SPACE);
