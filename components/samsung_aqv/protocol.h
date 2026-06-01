@@ -161,7 +161,7 @@ inline void append_bits_pronto(std::vector<uint16_t> &pairs, const uint8_t *bits
 inline std::string pronto_string(uint16_t freq, const std::vector<uint16_t> &pairs) {
   std::string result;
   char buf[6];
-  int n = pairs.size() / 2;
+  uint16_t n = static_cast<uint16_t>(pairs.size() / 2);
   snprintf(buf, sizeof(buf), "%04X", 0);
   result += buf;
   result += ' ';
