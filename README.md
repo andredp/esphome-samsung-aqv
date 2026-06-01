@@ -48,6 +48,7 @@ Add to your ESPHome device YAML:
 external_components:
   - source: github://andredp/esphome-samsung-aqv
     components: [samsung_aqv]
+    refresh: 1d
 
 remote_transmitter:
   pin: GPIO4  # your IR LED pin
@@ -75,6 +76,7 @@ The `receiver_id` is optional — omit it if you don't have an IR receiver and o
 external_components:
   - source: github://andredp/esphome-samsung-aqv
     components: [samsung_aqv]
+    refresh: 1d
 
 remote_transmitter:
   pin: GPIO4
