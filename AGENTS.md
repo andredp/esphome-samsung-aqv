@@ -70,7 +70,8 @@ external_components:
     components: [samsung_aqv]
 ```
 
-Target ESPHome version: 2026.5+. Uses `climate_ir_with_receiver_schema()` and `new_climate_ir()` APIs.
+Target ESPHome version: 2025.5+. Uses `climate_ir_with_receiver_schema()` and `new_climate_ir()` APIs.
+If the minimum version is raised, update the CI matrix in `.github/workflows/ci.yml`.
 
 ## Protocol quick reference
 

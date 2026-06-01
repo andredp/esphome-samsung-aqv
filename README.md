@@ -161,6 +161,4 @@ Requires `clang-format` and optionally `cppcheck` installed locally.
 
 Full protocol documentation in [`docs/protocol.md`](docs/protocol.md).
 
-## License
 
-MIT
