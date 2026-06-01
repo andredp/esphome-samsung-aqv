@@ -8,6 +8,16 @@ namespace samsung_aqv {
 
 static const char *const TAG = "samsung_aqv";
 
+// Receiver timing constants (µs) — nominal values, ESPHome applies ±25% tolerance
+static constexpr int RX_HDR_MARK_SHORT = 2920;     // ON header mark
+static constexpr int RX_HDR_MARK_LONG = 4950;      // fan_only header mark
+static constexpr int RX_HDR_SPACE = 8900;          // Header/inter-burst space
+static constexpr int RX_BIT_MARK = 450;            // Data bit mark
+static constexpr int RX_SPACE_ONE = 1630;          // Logic 1 space
+static constexpr int RX_SPACE_ZERO = 630;          // Logic 0 space
+static constexpr int RX_INTER_SPACE = 1900;        // Inter-burst gap space
+static constexpr int RX_OFF_SIZE_THRESHOLD = 280;  // 3 bursts > this, 2 bursts < this
+
 static Mode to_proto_mode(climate::ClimateMode m) {
   switch (m) {
     case climate::CLIMATE_MODE_COOL:
@@ -67,35 +77,29 @@ void SamsungAqvClimate::transmit_state() {
 bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
   ESP_LOGD(TAG, "on_receive called, size=%d", data.size());
 
-  // OFF = 3 bursts (~348 items), ON = 2 bursts (~232 items)
-  if (data.size() > 300) {
+  // OFF = 3 bursts (~347-348 items), ON = 2 bursts (~231-232 items)
+  if (data.size() > RX_OFF_SIZE_THRESHOLD) {
     this->mode = climate::CLIMATE_MODE_OFF;
     this->publish_state();
     return true;
   }
 
-  // Header mark (~2920 for ON, ~4950 for OFF/fan_only)
-  bool long_header;
-  if (data.expect_mark(2920)) {
-    long_header = false;
-  } else if (data.expect_mark(4950)) {
-    long_header = true;
-  } else {
-    return false;
-  }
+  // Header mark may or may not be in buffer (receiver timing dependent).
+  // Try to consume it; if buffer starts with space, skip to header space.
+  data.expect_mark(RX_HDR_MARK_SHORT) || data.expect_mark(RX_HDR_MARK_LONG);
 
-  // Header space (~9000µs)
-  if (!data.expect_space(8900))
+  // Header space
+  if (!data.expect_space(RX_HDR_SPACE))
     return false;
 
   // Decode burst 1: 56 bits
   uint8_t b1[56] = {};
   for (int i = 0; i < 56; i++) {
-    if (!data.expect_mark(450))
+    if (!data.expect_mark(RX_BIT_MARK))
       return false;
-    if (data.expect_space(1630))
+    if (data.expect_space(RX_SPACE_ONE))
       b1[i] = 1;
-    else if (data.expect_space(630))
+    else if (data.expect_space(RX_SPACE_ZERO))
       b1[i] = 0;
     else
       return false;
@@ -105,27 +109,22 @@ bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
   if (b1[1] != 1 || b1[9] != 1)
     return false;
 
-  // Inter-burst: trailing mark + gap before burst 2 header.
-  // Real receiver shows: ~450 mark, ~1900 space, then burst 2 header mark (~2920) + space (~9000).
-  // The gap timing varies by hardware; just consume the trailing mark and skip to the next header.
-  if (!data.expect_mark(450))
+  // Inter-burst: trailing mark + short space + burst 2 header mark + space
+  if (!data.expect_mark(RX_BIT_MARK))
     return false;
-  // Try direct burst 2 header (some receivers merge the gap differently)
-  if (!data.expect_space(1900)) {
-    // If no short space, the trailing mark might have been the last thing before header
+  if (!data.expect_space(RX_INTER_SPACE))
     return false;
-  }
-  if (!data.expect_item(long_header ? 4950 : 2920, 8900))
+  if (!(data.expect_item(RX_HDR_MARK_SHORT, RX_HDR_SPACE) || data.expect_item(RX_HDR_MARK_LONG, RX_HDR_SPACE)))
     return false;
 
   // Decode burst 2: 56 bits
   uint8_t b2[56] = {};
   for (int i = 0; i < 56; i++) {
-    if (!data.expect_mark(450))
+    if (!data.expect_mark(RX_BIT_MARK))
       return false;
-    if (data.expect_space(1630))
+    if (data.expect_space(RX_SPACE_ONE))
       b2[i] = 1;
-    else if (data.expect_space(630))
+    else if (data.expect_space(RX_SPACE_ZERO))
       b2[i] = 0;
     else
       return false;
