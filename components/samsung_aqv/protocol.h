@@ -4,27 +4,41 @@
 #include <string>
 #include <vector>
 
-// Samsung AQV IR Protocol — pure encoding logic, no ESPHome dependencies.
+// Samsung AQV IR Protocol — pure C++17 encoding/decoding logic.
+// No ESPHome dependencies. Compiles standalone for tests and CLI tools.
+//
+// Protocol: 38 kHz pulse-distance, 56 bits per burst.
+//   ON command  = 2 bursts (burst1: fan/header, burst2: mode/temp/swing)
+//   OFF command = 3 bursts (fixed payload)
+//
 // Models: AQV18NSCN, AQV09NSAX, Samsung AQV family (ARH-466 remote)
-// 56 data bits per burst, Pronto hex encoding at 38kHz.
 
 namespace esphome {
 namespace samsung_aqv {
 
-// Pronto timing constants (captured from ARH-466 remote)
-constexpr uint16_t P_FREQ = 0x006D;
-constexpr uint16_t P_HDR_SHORT = 0x006F;
-constexpr uint16_t P_HDR_SPACE = 0x015F;
-constexpr uint16_t P_INTER_MARK = 0x0071;
-constexpr uint16_t P_INTER_GAP = 0x0048;  // ~1900µs gap between bursts (real remote)
-constexpr uint16_t P_MARK = 0x0011;
-constexpr uint16_t P_SPACE_0 = 0x0018;
-constexpr uint16_t P_SPACE_1 = 0x003E;
-constexpr uint16_t P_TAIL = 0x0181;
+// ─── Pronto timing constants (captured from ARH-466 remote) ─────────────────
+
+constexpr uint16_t P_FREQ = 0x006D;       // 38 kHz carrier
+constexpr uint16_t P_HDR_SHORT = 0x006F;   // Header mark (~2920 µs) — all commands
+constexpr uint16_t P_HDR_SPACE = 0x015F;   // Header space (~9230 µs)
+constexpr uint16_t P_INTER_MARK = 0x0071;  // Inter-burst mark (~2970 µs)
+constexpr uint16_t P_INTER_GAP = 0x0048;   // Inter-burst gap (~1900 µs)
+constexpr uint16_t P_MARK = 0x0011;        // Bit mark (~450 µs)
+constexpr uint16_t P_SPACE_0 = 0x0018;     // Logic 0 space (~630 µs)
+constexpr uint16_t P_SPACE_1 = 0x003E;     // Logic 1 space (~1630 µs)
+constexpr uint16_t P_TAIL = 0x0181;        // Final tail space (~10124 µs)
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
 
 enum Mode { MODE_COOL, MODE_HEAT, MODE_DRY, MODE_FAN_ONLY, MODE_HEAT_COOL };
 enum Fan { FAN_AUTO, FAN_QUIET, FAN_LOW, FAN_MEDIUM, FAN_HIGH };
-enum Swing { SWING_ON, SWING_OFF };  // ON = moving, OFF = stopped
+enum Swing { SWING_ON, SWING_OFF };  // ON = vanes moving, OFF = vanes stopped
+
+// ─── Fan fallback logic ─────────────────────────────────────────────────────
+// Corrects invalid mode/fan combinations per Samsung manual (DB98-28490A):
+//   Dry       → always auto
+//   Fan_only  → no auto/quiet (falls back to low)
+//   Heat_cool → no quiet (falls back to auto)
 
 inline Fan resolve_fan(Mode mode, Fan fan) {
   switch (mode) {
@@ -39,8 +53,10 @@ inline Fan resolve_fan(Mode mode, Fan fan) {
   }
 }
 
+// ─── Bit-level helpers ──────────────────────────────────────────────────────
+
+// Fan speed → 3-bit value for burst2 bits 41-43 (MSB-first)
 inline uint8_t fan_bits(Fan fan) {
-  // Returns 3-bit value in transmission order (bit41=MSB, bit43=LSB)
   switch (fan) {
     case FAN_LOW:
       return 0b010;
@@ -49,12 +65,12 @@ inline uint8_t fan_bits(Fan fan) {
     case FAN_HIGH:
       return 0b101;
     default:
-      return 0b000;
+      return 0b000;  // auto and quiet both encode as 000
   }
 }
 
+// Mode → 3-bit value for burst2 bits 44-46 (MSB-first)
 inline uint8_t mode_bits(Mode mode) {
-  // 3-bit value in transmission order (bit44=MSB, bit46=LSB)
   switch (mode) {
     case MODE_COOL:
       return 0b100;
@@ -71,6 +87,7 @@ inline uint8_t mode_bits(Mode mode) {
   }
 }
 
+// Reverse n bits (used for checksum encoding)
 inline uint8_t reverse_bits(uint8_t val, int n) {
   uint8_t r = 0;
   for (int i = 0; i < n; i++)
@@ -78,6 +95,8 @@ inline uint8_t reverse_bits(uint8_t val, int n) {
   return r;
 }
 
+// Checksum: reverse_5bit(33 - count_ones(data_bits + extra_ones))
+// Stored MSB-first at bits 12-16 of each burst.
 inline uint8_t checksum(const uint8_t *bits, int count, int extra_ones = 0) {
   int ones = extra_ones;
   for (int i = 0; i < count; i++)
@@ -85,70 +104,76 @@ inline uint8_t checksum(const uint8_t *bits, int count, int extra_ones = 0) {
   return reverse_bits(33 - ones, 5);
 }
 
-// Burst 1: 56 bits. Fan speed encoded here (quiet flag at bit 41).
+// ─── Burst builders ─────────────────────────────────────────────────────────
+
+// Burst 1 (56 bits): device header + fan speed.
+// Only the quiet flag (bit 45) and checksum change between fan modes.
 inline void build_burst1(uint8_t bits[56], Fan fan) {
-  //                     byte0        byte1        byte2        byte3
-  //                     01000000     01001001     11110000     00000000
-  //                     byte4        byte5        byte6
-  //                     00000000     00000000     00001111
   const uint8_t base[56] = {0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1};
   memcpy(bits, base, 56);
   if (fan == FAN_QUIET)
-    bits[45] = 1;
-  // Checksum: bits 12-16, over bits 17-55 + implicit trailing 1
+    bits[45] = 1;  // Quiet flag differentiates quiet from auto (both have fan_bits=000)
   uint8_t chk = checksum(bits + 17, 39, 1);
   for (int i = 0; i < 5; i++)
     bits[12 + i] = (chk >> (4 - i)) & 1;
 }
 
-// Burst 2: 56 bits. Mode, temp, fan speed bits, swing, checksum.
+// Burst 2 (56 bits): mode, temperature, fan speed bits, swing, checksum.
+// Bit layout:
+//   [0-11]  prefix (100000000100)
+//   [12-16] checksum (5 bits, MSB-first)
+//   [17-19] constant (111)
+//   [20,22] swing (0=moving, 1=stopped), [21] always 1
+//   [23-35] constant
+//   [36-39] temperature (LSB-first, value = temp - 16)
+//   [40]    constant (1)
+//   [41-43] fan speed (MSB-first)
+//   [44-46] mode (MSB-first)
+//   [47-51] constant (00000)
+//   [52-55] constant (1111)
 inline void build_burst2(uint8_t bits[56], int temp, Mode mode, Fan fan, Swing swing) {
   memset(bits, 0, 56);
-  // Prefix: bits 0-11 = 100000000100
   bits[0] = 1;
   bits[9] = 1;
-  // Bits 17-19: 111
   bits[17] = 1;
   bits[18] = 1;
   bits[19] = 1;
-  // Swing: bits 20, 22 (0=moving/on, 1=stopped/off)
   uint8_t sw = (swing == SWING_OFF) ? 1 : 0;
   bits[20] = sw;
   bits[21] = 1;
   bits[22] = sw;
-  // Bits 23-24: 11
   bits[23] = 1;
   bits[24] = 1;
-  // Temperature: bits 36-39 (LSB-first, val = temp-16)
+  // Temperature: 4 bits LSB-first
   uint8_t tv = (uint8_t) (temp - 16);
   for (int i = 0; i < 4; i++)
     bits[36 + i] = (tv >> i) & 1;
-  // Bit 40: 1
   bits[40] = 1;
-  // Fan: bits 41-43 (MSB-first: bit41 is high bit of fan_bits)
+  // Fan speed: 3 bits MSB-first
   uint8_t fb = fan_bits(fan);
   bits[41] = (fb >> 2) & 1;
   bits[42] = (fb >> 1) & 1;
   bits[43] = fb & 1;
-  // Mode: bits 44-46 (MSB-first: bit44 is high bit of mode_bits)
+  // Mode: 3 bits MSB-first
   uint8_t mb = mode_bits(mode);
   bits[44] = (mb >> 2) & 1;
   bits[45] = (mb >> 1) & 1;
   bits[46] = mb & 1;
-  // Suffix: bits 47-51 = 00000, bits 52-55 = 1111
+  // Suffix
   bits[52] = 1;
   bits[53] = 1;
   bits[54] = 1;
   bits[55] = 1;
-  // Checksum: bits 12-16, over bits 17-55 + implicit trailing 1
+  // Checksum over bits 17-55 + 1 implicit trailing bit
   uint8_t chk = checksum(bits + 17, 39, 1);
   for (int i = 0; i < 5; i++)
     bits[12 + i] = (chk >> (4 - i)) & 1;
 }
 
-// --- Pronto encoding ---
+// ─── Pronto encoding ────────────────────────────────────────────────────────
 
+// Append 56 data bits as mark/space pairs to the Pronto pair vector.
 inline void append_bits_pronto(std::vector<uint16_t> &pairs, const uint8_t *bits, int count) {
   for (int i = 0; i < count; i++) {
     pairs.push_back(P_MARK);
@@ -156,6 +181,7 @@ inline void append_bits_pronto(std::vector<uint16_t> &pairs, const uint8_t *bits
   }
 }
 
+// Format a Pronto hex string from frequency code and timing pairs.
 inline std::string pronto_string(uint16_t freq, const std::vector<uint16_t> &pairs) {
   std::string result;
   char buf[6];
@@ -179,6 +205,9 @@ inline std::string pronto_string(uint16_t freq, const std::vector<uint16_t> &pai
   return result;
 }
 
+// ─── Encode commands ────────────────────────────────────────────────────────
+
+// Encode OFF command (3 fixed bursts, no parameters).
 inline std::string encode_off() {
   const uint8_t b1[56] = {0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1};
@@ -206,15 +235,15 @@ inline std::string encode_off() {
   return pronto_string(P_FREQ, pairs);
 }
 
+// Encode ON command. Fan fallback is applied automatically.
 inline std::string encode_on(int temp, Mode mode, Fan fan, Swing swing) {
   Fan actual_fan = resolve_fan(mode, fan);
   uint8_t b1[56], b2[56];
   build_burst1(b1, actual_fan);
   build_burst2(b2, temp, mode, actual_fan, swing);
 
-  uint16_t hdr = P_HDR_SHORT;
   std::vector<uint16_t> pairs;
-  pairs.push_back(hdr);
+  pairs.push_back(P_HDR_SHORT);
   pairs.push_back(P_HDR_SPACE);
   append_bits_pronto(pairs, b1, 56);
   pairs.push_back(P_MARK);
@@ -227,7 +256,7 @@ inline std::string encode_on(int temp, Mode mode, Fan fan, Swing swing) {
   return pronto_string(P_FREQ, pairs);
 }
 
-// --- Decoding ---
+// ─── Decoding ───────────────────────────────────────────────────────────────
 
 struct DecodedState {
   bool valid;
@@ -238,12 +267,13 @@ struct DecodedState {
   Swing swing;
 };
 
-// Core decode: given burst1 and burst2 bit arrays + header type, extract state.
-// Used by both decode_pronto() and on_receive() — single source of truth.
+// Decode mode/fan/temp/swing from burst1 + burst2 bit arrays.
+// Validates checksums on both bursts. Returns {valid=false} on failure.
+// Used by ESPHome on_receive() and by test decode helpers.
 inline DecodedState decode_from_bits(const uint8_t b1[56], const uint8_t b2[56]) {
   DecodedState state{};
 
-  // Validate checksum on burst 1 (same algorithm as burst 2)
+  // Validate burst 1 checksum
   {
     int ones = 0;
     for (int i = 17; i < 56; i++)
@@ -257,11 +287,11 @@ inline DecodedState decode_from_bits(const uint8_t b1[56], const uint8_t b2[56])
       return state;
   }
 
-  // Validate checksum on burst 2
+  // Validate burst 2 checksum
   int ones = 0;
   for (int i = 17; i < 56; i++)
     ones += b2[i];
-  ones += 1;  // implicit trailing bit
+  ones += 1;
   uint8_t expected_ck = reverse_bits(33 - (ones % 32), 5);
   uint8_t actual_ck = 0;
   for (int i = 0; i < 5; i++)
@@ -270,11 +300,10 @@ inline DecodedState decode_from_bits(const uint8_t b1[56], const uint8_t b2[56])
     return state;
 
   state.valid = true;
+  state.is_off = false;
 
   // Mode: bits 44-46 MSB-first
   int mode_raw = (b2[44] << 2) | (b2[45] << 1) | b2[46];
-
-  state.is_off = false;
   switch (mode_raw) {
     case 0b100:
       state.mode = MODE_COOL;
@@ -296,10 +325,10 @@ inline DecodedState decode_from_bits(const uint8_t b1[56], const uint8_t b2[56])
       return state;
   }
 
-  // Temperature: bits 36-39 LSB-first
+  // Temperature: bits 36-39 LSB-first, value = raw + 16
   state.temp = (b2[36] | (b2[37] << 1) | (b2[38] << 2) | (b2[39] << 3)) + 16;
 
-  // Fan: burst 1 bit 45 = quiet flag, burst 2 bits 41-43 MSB-first
+  // Fan: quiet flag in burst1 bit 45, speed bits in burst2 bits 41-43
   bool quiet = (b1[45] == 1);
   int fan_raw = (b2[41] << 2) | (b2[42] << 1) | b2[43];
   if (quiet) {
@@ -324,7 +353,7 @@ inline DecodedState decode_from_bits(const uint8_t b1[56], const uint8_t b2[56])
     }
   }
 
-  // Swing: bit 20 (0=moving/on, 1=stopped/off)
+  // Swing: bit 20 (0 = moving/on, 1 = stopped/off)
   state.swing = (b2[20] == 1) ? SWING_OFF : SWING_ON;
   return state;
 }
