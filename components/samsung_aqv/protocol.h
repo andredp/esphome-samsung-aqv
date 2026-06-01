@@ -18,7 +18,7 @@ namespace samsung_aqv {
 
 // ─── Pronto timing constants (captured from ARH-466 remote) ─────────────────
 
-constexpr uint16_t P_FREQ = 0x006D;       // 38 kHz carrier
+constexpr uint16_t P_FREQ = 0x006D;        // 38 kHz carrier
 constexpr uint16_t P_HDR_SHORT = 0x006F;   // Header mark (~2920 µs) — all commands
 constexpr uint16_t P_HDR_SPACE = 0x015F;   // Header space (~9230 µs)
 constexpr uint16_t P_INTER_MARK = 0x0071;  // Inter-burst mark (~2970 µs)
