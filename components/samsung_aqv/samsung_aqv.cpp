@@ -2,7 +2,7 @@
 #include "protocol.h"
 #include "esphome/components/remote_base/pronto_protocol.h"
 #include "esphome/core/log.h"
-#include <string>
+#include <cinttypes>
 
 namespace esphome {
 namespace samsung_aqv {
@@ -81,14 +81,12 @@ bool SamsungAqvClimate::on_receive(remote_base::RemoteReceiveData data) {
 #ifdef USE_TEXT_SENSOR
   if (this->debug_sensor_ != nullptr) {
     auto raw = data.get_raw_data();
-    std::string buf;
+    char buf[128];
+    int pos = 0;
     int n = std::min((int) raw.size(), 20);
-    for (int i = 0; i < n; i++) {
-      if (i > 0)
-        buf += ' ';
-      buf += std::to_string(raw[i]);
-    }
-    buf += " (size=" + std::to_string(raw.size()) + ")";
+    for (int i = 0; i < n && pos < 120; i++)
+      pos += snprintf(buf + pos, sizeof(buf) - pos, i ? " %" PRId32 : "%" PRId32, raw[i]);
+    snprintf(buf + pos, sizeof(buf) - pos, " (size=%d)", (int) raw.size());
     this->debug_sensor_->publish_state(buf);
   }
 #endif
