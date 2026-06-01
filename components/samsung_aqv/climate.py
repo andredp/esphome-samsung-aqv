@@ -3,7 +3,7 @@ import esphome.config_validation as cv
 from esphome.components import climate_ir, text_sensor
 from esphome.const import ENTITY_CATEGORY_DIAGNOSTIC
 
-AUTO_LOAD = ["climate_ir"]
+AUTO_LOAD = ["climate_ir", "text_sensor"]
 CODEOWNERS = ["@andredp"]
 
 CONF_DEBUG = "debug"
