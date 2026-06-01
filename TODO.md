@@ -4,7 +4,6 @@
 
 - [ ] Test more modes with real remote — Heat, Dry, Heat_cool (Cool and Fan_only verified)
 - [ ] Handle receiver self-echo (likely non-issue — ESPHome disables RX during TX)
-- [ ] Consider removing `<sstream>` from protocol.h (only used by `decode_pronto`, adds ~4KB flash)
 
 ## Done
 
@@ -24,3 +23,4 @@
 - [x] Fan_only header confirmed short (~2940µs) via real remote capture
 - [x] OFF command detection (3-burst signal, size threshold)
 - [x] CI (GitHub Actions) — native tests, cppcheck, clang-format, ESPHome compile (ESP8266/ESP32/BK7231N)
+- [x] Move `decode_pronto` to test_helpers.h — removes `<sstream>` from firmware

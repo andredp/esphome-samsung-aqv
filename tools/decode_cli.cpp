@@ -1,6 +1,6 @@
 #include <cstdio>
 #include <string>
-#include "../components/samsung_aqv/protocol.h"
+#include "../tests/test_helpers.h"
 using namespace esphome::samsung_aqv;
 
 int main(int argc, char *argv[]) {

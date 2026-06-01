@@ -114,5 +114,51 @@ inline DecodedState decode_from_timings(const int32_t *timings, size_t count) {
   return decode_from_bits(b1, b2);
 }
 
+// Decode from Pronto hex string (test/CLI only — device receives raw timings).
+inline DecodedState decode_pronto(const std::string &pronto) {
+  DecodedState state{};
+  std::vector<uint16_t> codes;
+  std::istringstream ss(pronto);
+  std::string token;
+  while (ss >> token)
+    codes.push_back((uint16_t) strtoul(token.c_str(), nullptr, 16));
+  if (codes.size() < 4)
+    return state;
+
+  size_t idx = 4;
+  if (idx + 1 >= codes.size())
+    return state;
+
+  // OFF = 3 bursts (pair count > 150), ON = 2 bursts (~116 pairs)
+  if (codes[2] > 0x0090) {
+    state.valid = true;
+    state.is_off = true;
+    return state;
+  }
+
+  idx += 2;  // skip header mark+space
+
+  uint8_t b1[56];
+  for (int i = 0; i < 56; i++) {
+    if (idx + 1 >= codes.size())
+      return state;
+    idx++;  // skip mark
+    b1[i] = (codes[idx] > 0x002B) ? 1 : 0;
+    idx++;
+  }
+  idx += 4;  // trailing mark + inter-burst gap + inter-burst mark + header space
+
+  uint8_t b2[56];
+  for (int i = 0; i < 56; i++) {
+    if (idx + 1 >= codes.size())
+      return state;
+    idx++;
+    b2[i] = (codes[idx] > 0x002B) ? 1 : 0;
+    idx++;
+  }
+
+  return decode_from_bits(b1, b2);
+}
+
 }  // namespace samsung_aqv
 }  // namespace esphome

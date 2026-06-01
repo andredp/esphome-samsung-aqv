@@ -3,7 +3,6 @@
 #include <cstring>
 #include <string>
 #include <vector>
-#include <sstream>
 
 // Samsung AQV IR Protocol — pure encoding logic, no ESPHome dependencies.
 // Models: AQV18NSCN, AQV09NSAX, Samsung AQV family (ARH-466 remote)
@@ -328,56 +327,6 @@ inline DecodedState decode_from_bits(const uint8_t b1[56], const uint8_t b2[56])
   // Swing: bit 20 (0=moving/on, 1=stopped/off)
   state.swing = (b2[20] == 1) ? SWING_OFF : SWING_ON;
   return state;
-}
-
-// Decode from Pronto hex string
-inline DecodedState decode_pronto(const std::string &pronto) {
-  DecodedState state{};
-  std::vector<uint16_t> codes;
-  std::istringstream ss(pronto);
-  std::string token;
-  while (ss >> token) {
-    codes.push_back((uint16_t) strtoul(token.c_str(), nullptr, 16));
-  }
-  if (codes.size() < 4)
-    return state;
-
-  size_t idx = 4;  // skip Pronto header (4 words)
-  if (idx + 1 >= codes.size())
-    return state;
-
-  // OFF = 3 bursts (pair count > 150), ON = 2 bursts (~116 pairs)
-  if (codes[2] > 0x0090) {
-    state.valid = true;
-    state.is_off = true;
-    return state;
-  }
-
-  idx += 2;  // skip header mark+space
-
-  // Decode burst 1 (56 bit pairs) — threshold at midpoint between P_SPACE_0(0x18) and P_SPACE_1(0x3E)
-  uint8_t b1[56];
-  for (int i = 0; i < 56; i++) {
-    if (idx + 1 >= codes.size())
-      return state;
-    idx++;  // skip mark
-    b1[i] = (codes[idx] > 0x002B) ? 1 : 0;
-    idx++;
-  }
-  // Skip trailing mark + inter-burst space + inter-burst mark + inter-burst space
-  idx += 4;
-
-  // Decode burst 2 (56 bit pairs)
-  uint8_t b2[56];
-  for (int i = 0; i < 56; i++) {
-    if (idx + 1 >= codes.size())
-      return state;
-    idx++;
-    b2[i] = (codes[idx] > 0x002B) ? 1 : 0;
-    idx++;
-  }
-
-  return decode_from_bits(b1, b2);
 }
 
 }  // namespace samsung_aqv
