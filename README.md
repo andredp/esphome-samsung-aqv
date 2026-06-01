@@ -1,100 +1,160 @@
 # esphome-samsung-aqv
 
 ESPHome external component for Samsung AQV air conditioners via IR.
-Replaces SmartIR with native protocol encoding, IR receiver support, and fan mode fallbacks.
 
-## Supported Models
+Provides native climate control with IR receiver support, fan mode fallbacks, and full Pronto protocol encoding — no SmartIR or other HACS integrations needed.
 
-Samsung AQV family (ARH-466 remote): AQV18NSCN, AQV09NSAX, AQV12PSBN, and similar.
+## Why not ESPHome's built-in `heatpumpir` component?
+
+ESPHome includes a [`heatpumpir`](https://esphome.io/components/climate/climate_ir.html#heatpumpir) climate component that wraps the [Arduino-HeatpumpIR](https://github.com/ToniA/arduino-heatpumpir) library. It supports `samsung_aqv` as a protocol option, but has significant limitations:
+
+| | ESPHome `heatpumpir` (samsung_aqv) | This component |
+|---|---|---|
+| Max temperature | 27°C (library bug) | 30°C (correct per manual) |
+| Fan speeds | 3 (low/med/high) + auto | 4 + auto: quiet, low, medium, high |
+| Quiet/Silence mode | ❌ | ✅ |
+| Fan fallbacks | Partial (auto→auto in dry) | Full (dry, fan_only, heat_cool combos) |
+| IR receiver | ❌ Transmit only | ✅ Decodes remote, syncs HA state |
+| Platform support | Arduino only (ESP8266/ESP32) | Arduino + LibreTiny (BK7231N, etc.) |
+| Protocol source | Arduino-HeatpumpIR C++ library | Self-contained header (protocol.h) |
+| Checksum | Simplified formula | Full reverse-engineered, validated against 457 codes |
+| Tested against real remote | ❌ | ✅ 17 captured signals verified bit-for-bit |
+
+If you're on ESP8266/ESP32 and don't need quiet mode, accurate temp range, or IR receiver, `heatpumpir` works fine. This component exists because we needed all of the above on a BK7231N (Tuya CBU) blaster.
+
+## Supported models
+
+Samsung AQV family with ARH-466 compatible remote:
+- AQV18NSCN, AQV09NSAX, AQV12PSBN, and similar
+- Any Samsung split AC using the 56-bit pulse-distance protocol at 38 kHz
 
 ## Features
 
-- Full climate control: cool, heat, dry, fan_only, heat_cool
-- Fan speeds: auto, quiet, low, medium, high
-- Swing: on (moving) / off (stopped)
-- Temperature: 16–30°C
-- IR receiver: detects physical remote commands and syncs HA state
-- Fan fallbacks: invalid combos silently corrected (dry→auto, fan_only quiet→low, etc.)
+- **Full climate modes:** cool, heat, dry, fan_only, heat_cool (auto)
+- **Fan speeds:** auto, quiet (silence), low, medium, high
+- **Swing:** vertical on (moving) / off (stopped)
+- **Temperature:** 16–30°C in 1°C steps
+- **IR receiver:** detects physical remote commands and updates HA state
+- **Fan fallbacks:** invalid mode/fan combos silently corrected:
+  - Dry → forces auto fan
+  - Fan only + auto/quiet → falls back to low
+  - Heat cool + quiet → falls back to auto
 
-## Usage
+## Installation
+
+Add to your ESPHome device YAML:
 
 ```yaml
 external_components:
   - source: github://andredp/esphome-samsung-aqv
     components: [samsung_aqv]
 
+remote_transmitter:
+  pin: GPIO4  # your IR LED pin
+  carrier_duty_percent: 50%
+
+remote_receiver:
+  id: ir_receiver
+  pin:
+    number: GPIO5  # your IR receiver pin
+    inverted: true
+    mode: INPUT_PULLUP
+  tolerance: 25%
+
 climate:
   - platform: samsung_aqv
     name: "Living Room AC"
-    receiver_id: ir_receiver  # optional
+    receiver_id: ir_receiver
 ```
 
-Requires `remote_transmitter` (and optionally `remote_receiver`) configured on the device.
+The `receiver_id` is optional — omit it if you don't have an IR receiver and only need transmission.
 
-## Repository Structure
+### Minimal example (transmit only)
+
+```yaml
+external_components:
+  - source: github://andredp/esphome-samsung-aqv
+    components: [samsung_aqv]
+
+remote_transmitter:
+  pin: GPIO4
+  carrier_duty_percent: 50%
+
+climate:
+  - platform: samsung_aqv
+    name: "Bedroom AC"
+```
+
+## Tested hardware
+
+| Device | Module | Platform | Notes |
+|--------|--------|----------|-------|
+| Tuya S11 IR blaster | CBU (BK7231N) | LibreTiny | TX: P7, RX: P8 |
+| Athom IR blaster | ESP8266 | ESP8266 | TX: GPIO4, RX: GPIO5 |
+
+Should work on any ESPHome-compatible board with an IR LED (and optionally IR receiver).
+
+## How it works
+
+1. **Transmission:** When you change the climate state in HA, `transmit_state()` encodes the settings into a Pronto hex string via `protocol.h`, then transmits using ESPHome's native `ProntoProtocol`.
+
+2. **Reception:** When the physical remote is used, `on_receive()` decodes the raw IR signal, validates the checksum, extracts mode/fan/temp/swing, and updates the HA entity state.
+
+3. **Fan fallbacks:** Before encoding, `resolve_fan()` corrects invalid mode/fan combinations based on the AC's actual capabilities (validated against the Samsung manual).
+
+## Repository structure
 
 ```
 components/samsung_aqv/
-├── __init__.py        # Empty, required by ESPHome component loader
-├── climate.py         # ESPHome component registration (schema, code generation)
-├── samsung_aqv.h      # ClimateIR subclass declaration
-├── samsung_aqv.cpp    # ESPHome integration: transmit_state(), on_receive(), fan fallbacks
-└── protocol.h         # Pure C++ protocol logic (no ESPHome deps, testable standalone)
+├── protocol.h       — Pure C++ protocol engine (no ESPHome deps, testable standalone)
+├── samsung_aqv.h    — ClimateIR subclass declaration
+├── samsung_aqv.cpp  — ESPHome glue: TX via ProntoProtocol, RX bit decoding
+├── climate.py       — ESPHome component registration (CONFIG_SCHEMA + to_code)
+└── __init__.py      — Empty (ESPHome package requirement)
 
 tests/
-├── test_protocol.py   # Test harness: 924 tests (encode, decode roundtrip, fan fallbacks)
-├── encode_cli.cpp     # CLI wrapper around protocol.h encode functions
-├── decode_cli.cpp     # CLI wrapper around protocol.h decode functions
-└── samsung_aqv18nscn.json  # Ground truth: all 457 Pronto codes from SmartIR
+├── test_protocol.cpp      — Native C++ tests (doctest, 6400+ assertions)
+├── test_vectors.h         — 457 Pronto test vectors (compile-time)
+├── doctest.h              — Single-header test framework
+├── encode_cli.cpp         — CLI encoder (for manual debugging)
+├── decode_cli.cpp         — CLI decoder
+├── samsung_aqv18nscn.json — Ground truth: 457 Pronto codes
+├── test_esphome.yaml      — ESPHome compile test (ESP8266)
+├── test_esphome_esp32.yaml    — ESPHome compile test (ESP32)
+└── test_esphome_bk7231n.yaml  — ESPHome compile test (BK7231N)
 
 docs/
-├── protocol.md        # Protocol reverse-engineering notes (bit layout, checksum, timing)
-├── captured_signals.md # 17 Pronto codes captured from physical ARH-466 remote
-└── generate_samsung_ir.py  # DEPRECATED Python generator (kept for reference)
+├── protocol.md         — Full protocol reverse-engineering notes
+├── captured_signals.md — 17 captured codes from ARH-466 remote
+└── generate_samsung_ir.py — Deprecated Python generator (reference only)
 ```
 
-## File Purposes
-
-### `protocol.h` — Protocol Engine
-
-Standalone C++ header with zero ESPHome dependencies. Contains:
-- `encode_on(temp, mode, fan, swing)` → Pronto hex string
-- `encode_off()` → Pronto hex string
-- `decode_pronto(string)` → `DecodedState{mode, fan, temp, swing}`
-- `resolve_fan(mode, fan)` → corrected fan for invalid combos
-- Burst building, checksum calculation, bit layout constants
-
-This is the single source of truth for the protocol. Tests compile against it directly.
-
-### `samsung_aqv.h` / `samsung_aqv.cpp` — ESPHome Glue
-
-Subclass of `ClimateIR` that bridges ESPHome's climate API to `protocol.h`:
-- `transmit_state()` — called when HA changes climate state; encodes and sends IR
-- `on_receive()` — called when IR receiver detects a signal; decodes and updates HA state
-- `resolve_fan_()` — maps ESPHome fan modes through the fallback logic
-
-### `climate.py` — Component Registration
-
-Tells ESPHome how to configure the component in YAML. Registers the platform,
-defines the schema (inherits from `climate_ir`), and generates C++ code.
-
-## Running Tests
+## Running tests
 
 ```bash
-cd tests && python3 test_protocol.py
+g++ -std=c++17 -O2 -o tests/test_protocol tests/test_protocol.cpp
+tests/test_protocol
 ```
 
-Compiles `encode_cli.cpp` and `decode_cli.cpp`, then runs 924 assertions:
-- 457 encode tests against the JSON lookup table
-- 457 decode roundtrip tests (encode → decode → verify params)
-- 10 fan fallback tests
+## Development
 
-## Protocol Summary
+```bash
+# Install pre-commit hook (clang-format + cppcheck)
+ln -sf ../../.hooks/pre-commit .git/hooks/pre-commit
+```
 
-- 38 kHz carrier, pulse-distance encoding, LSB-first
-- ON: 2 bursts × 56 bits (short header 0x006F, fan_only uses long 0x00BC)
-- OFF: 3 bursts × 56 bits (long header 0x00BC, fixed payload)
+Requires `clang-format` and optionally `cppcheck` installed locally.
+
+## Protocol summary
+
+- 38 kHz carrier, pulse-distance encoding
+- ON command: 2 bursts × 56 bits
+- OFF command: 3 bursts × 56 bits (fixed payload)
 - Checksum: `reverse_5bit(33 - count_ones(bits[17:55] + 1))` at bits 12–16
-- Quiet fan: burst1 bit 45 (not bit 41 as some sources claim)
+- Quiet fan flag: burst 1 bit 45 (not bit 41 as some sources incorrectly state)
 
-See `docs/protocol.md` for full bit layout documentation.
+Full protocol documentation in [`docs/protocol.md`](docs/protocol.md).
+
+## License
+
+MIT

@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  native-tests:
+    name: C++ Tests (doctest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run tests
+        run: |
+          g++ -std=c++17 -O2 -Werror -Wall -o tests/test_protocol tests/test_protocol.cpp
+          tests/test_protocol
+
+  cppcheck:
+    name: cppcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cppcheck
+        run: sudo apt-get install -y cppcheck
+      - name: Run cppcheck
+        run: cppcheck --enable=warning,performance,portability --error-exitcode=1 --std=c++17 --suppress=missingIncludeSystem components/samsung_aqv/protocol.h
+
+  clang-format:
+    name: clang-format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check formatting
+        run: find components tests -name '*.cpp' -o -name '*.h' | grep -v doctest.h | grep -v test_vectors.h | xargs clang-format --dry-run --Werror
+
+  esphome-compile:
+    name: ESPHome Compile (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - platform: ESP8266
+            yaml: tests/test_esphome.yaml
+          - platform: ESP32
+            yaml: tests/test_esphome_esp32.yaml
+          - platform: BK7231N
+            yaml: tests/test_esphome_bk7231n.yaml
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ESPHome
+        run: pip install esphome
+      - name: Compile
+        run: esphome compile ${{ matrix.yaml }}

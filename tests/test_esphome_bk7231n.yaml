@@ -1,0 +1,25 @@
+esphome:
+  name: ci-test-bk7231n
+
+bk72xx:
+  board: generic-bk7231n-qfn32-tuya
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+
+remote_transmitter:
+  pin: P8
+  carrier_duty_percent: 50%
+
+remote_receiver:
+  id: ir_receiver
+  pin:
+    number: P7
+    inverted: true
+
+climate:
+  - platform: samsung_aqv
+    name: "Test AC"
+    receiver_id: ir_receiver

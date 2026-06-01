@@ -1,0 +1,26 @@
+#!/bin/sh
+# Pre-commit hook: lint staged C++ files and run tests
+# Install: ln -sf ../../.hooks/pre-commit .git/hooks/pre-commit
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(cpp|h)$' | grep -v doctest.h | grep -v test_vectors.h)
+[ -z "$STAGED" ] && exit 0
+
+# clang-format check
+if command -v clang-format >/dev/null 2>&1; then
+  echo "$STAGED" | while IFS= read -r f; do
+    if ! clang-format --dry-run --Werror "$f" 2>&1; then
+      echo "clang-format failed on $f — run: clang-format -i $f"
+      exit 1
+    fi
+  done || exit 1
+fi
+
+# cppcheck (protocol.h only)
+if command -v cppcheck >/dev/null 2>&1; then
+  if echo "$STAGED" | grep -q "protocol.h"; then
+    cppcheck --enable=warning,performance,portability --error-exitcode=1 --std=c++17 --suppress=missingIncludeSystem components/samsung_aqv/protocol.h || exit 1
+  fi
+fi
+
+# Compile and run tests
+g++ -std=c++17 -O2 -Werror -Wall -o tests/test_protocol tests/test_protocol.cpp && tests/test_protocol --no-exitcode || exit 1

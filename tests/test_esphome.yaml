@@ -1,0 +1,25 @@
+esphome:
+  name: ci-test
+
+esp8266:
+  board: d1_mini
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+
+remote_transmitter:
+  pin: GPIO14
+  carrier_duty_percent: 50%
+
+remote_receiver:
+  id: ir_receiver
+  pin:
+    number: GPIO5
+    inverted: true
+
+climate:
+  - platform: samsung_aqv
+    name: "Test AC"
+    receiver_id: ir_receiver
