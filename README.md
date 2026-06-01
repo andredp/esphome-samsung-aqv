@@ -1,5 +1,10 @@
 # esphome-samsung-aqv
 
+[![CI](https://github.com/andredp/esphome-samsung-aqv/actions/workflows/ci.yml/badge.svg)](https://github.com/andredp/esphome-samsung-aqv/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/tag/andredp/esphome-samsung-aqv?label=release)](https://github.com/andredp/esphome-samsung-aqv/releases)
+[![ESPHome](https://img.shields.io/badge/ESPHome-2025.5%2B-blue)](https://esphome.io)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ESPHome external component for Samsung AQV air conditioners via IR.
 
 Provides native climate control with IR receiver support, fan mode fallbacks, and full Pronto protocol encoding — no SmartIR or other HACS integrations needed.
