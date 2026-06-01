@@ -1,5 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
+#include "test_helpers.h"
 #include "test_vectors.h"
 
 using namespace esphome::samsung_aqv;

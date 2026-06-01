@@ -15,11 +15,9 @@ if command -v clang-format >/dev/null 2>&1; then
   done || exit 1
 fi
 
-# cppcheck (protocol.h only)
+# cppcheck
 if command -v cppcheck >/dev/null 2>&1; then
-  if echo "$STAGED" | grep -q "protocol.h"; then
-    cppcheck --enable=warning,performance,portability --error-exitcode=1 --std=c++17 --suppress=missingIncludeSystem components/samsung_aqv/protocol.h || exit 1
-  fi
+  cppcheck --language=c++ --enable=warning,performance,portability --error-exitcode=1 --std=c++17 --suppress=missingIncludeSystem --suppress=missingInclude components/samsung_aqv/ || exit 1
 fi
 
 # Compile and run tests
