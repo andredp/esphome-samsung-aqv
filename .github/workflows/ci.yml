@@ -36,17 +36,15 @@ jobs:
         run: find components tests tools -name '*.cpp' -o -name '*.h' | grep -v doctest.h | grep -v test_vectors.h | xargs clang-format --dry-run --Werror
 
   esphome-compile:
-    name: ESPHome ${{ matrix.esphome }} (${{ matrix.platform }})
+    name: ESPHome ${{ matrix.esphome_version || 'latest' }} / ${{ matrix.platform }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - esphome: "2025.5.0"
-            platform: ESP8266
-            yaml: tests/test_esphome.yaml
-          - esphome: ""
-            platform: BK7231N
-            yaml: tests/test_esphome_bk7231n.yaml
+        esphome_version: ["2025.5.0", ""]
+        platform:
+          - {name: ESP8266, yaml: "tests/test_esphome.yaml"}
+          - {name: ESP32, yaml: "tests/test_esphome_esp32.yaml"}
+          - {name: BK7231N, yaml: "tests/test_esphome_bk7231n.yaml"}
     steps:
       - uses: actions/checkout@v6
       - name: Set up Python
@@ -54,6 +52,6 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install ESPHome
-        run: pip install esphome${{ matrix.esphome && format('=={0}', matrix.esphome) || '' }}
+        run: pip install esphome${{ matrix.esphome_version && format('=={0}', matrix.esphome_version) || '' }}
       - name: Compile
-        run: esphome compile ${{ matrix.yaml }}
+        run: esphome compile ${{ matrix.platform.yaml }}
