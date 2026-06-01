@@ -60,7 +60,7 @@ remote_receiver:
     number: GPIO5  # your IR receiver pin
     inverted: true
     mode: INPUT_PULLUP
-  tolerance: 25%
+  tolerance: 40%
 
 climate:
   - platform: samsung_aqv
