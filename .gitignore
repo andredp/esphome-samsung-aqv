@@ -5,3 +5,5 @@ tools/encode_cli
 tools/decode_cli
 __pycache__/
 *.pyc
+
+.kiro/
